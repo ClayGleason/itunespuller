@@ -1,3 +1,4 @@
+using System.Globalization;
 using ChoreJamming.Domain;
 using ChoreJamming.Domain.Models;
 using Newtonsoft.Json.Linq;
@@ -13,9 +14,9 @@ public class AudioDbService : IMusicProvider
         _http = http;
     }
 
-    public async Task<Song?> GetSongAsync(string query)
+    public async Task<List<Song>> GetSongAsync(string query)
     {
-        var url = $"https://itunes.apple.com/search?term={query}&entity=song&limit=1";
+        var url = $"https://itunes.apple.com/search?term={query}&entity=song&limit=10";
 
         try 
         {
@@ -24,22 +25,27 @@ public class AudioDbService : IMusicProvider
 
             var jsonString = await response.Content.ReadAsStringAsync();
             
-            if (string.IsNullOrWhiteSpace(jsonString)) return null;
+            if (string.IsNullOrWhiteSpace(jsonString)) return [];
 
             var json = JObject.Parse(jsonString);
             var results = json["results"];
+            Console.WriteLine(results);
 
-            if (results == null || !results.HasValues) return null;
+            if (results == null || !results.HasValues) return [];
 
-            var item = results[0];
-            return new Song
-            {
-                Title = item["trackName"]?.ToString() ?? "Unknown",
-                Artist = item["artistName"]?.ToString() ?? "Unknown",
-                Album = item["collectionName"]?.ToString() ?? "Single",
-                VideoUrl = item["previewUrl"]?.ToString() ?? "",
-                ThumbnailUrl = item["artworkUrl100"]?.ToString().Replace("100x100", "600x600") ?? ""
-            };
+            return results.Select(result => new Song
+                {
+                    Title = result["trackName"]?.ToString() ?? "Unknown",
+                    Artist = result["artistName"]?.ToString() ?? "Unknown",
+                    Album = result["collectionName"]?.ToString() ?? "Single",
+                    VideoUrl = result["previewUrl"]?.ToString() ?? "",
+                    ThumbnailUrl = result["artworkUrl100"]?.ToString().Replace("100x100", "600x600") ?? "",
+                    Genre = result["primaryGenreName"]?.ToString() ?? "Unknown",
+                    ReleaseDate = DateTime.Parse(result["releaseDate"]?.ToString() ?? ""),
+                    Explicit = result["trackExplicitness"]?.ToString() ?? ""
+                })
+                .ToList();
+
         }
         catch
         {

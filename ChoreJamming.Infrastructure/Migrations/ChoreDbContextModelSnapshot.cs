@@ -15,7 +15,7 @@ namespace ChoreJamming.Infrastructure.Migrations
         protected override void BuildModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "9.0.11");
+            modelBuilder.HasAnnotation("ProductVersion", "9.0.9");
 
             modelBuilder.Entity("ChoreJamming.Domain.Models.ChoreHistory", b =>
                 {
@@ -29,6 +29,9 @@ namespace ChoreJamming.Infrastructure.Migrations
 
                     b.Property<DateTime>("Date")
                         .HasColumnType("TEXT");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("SongTitle")
                         .IsRequired()

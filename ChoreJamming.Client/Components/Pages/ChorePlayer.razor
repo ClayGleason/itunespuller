@@ -9,7 +9,7 @@
     <div class="col-md-6">
         <label>Enter a <b>Song Title</b> (e.g. "Thriller", "Hello"):</label>
         <div class="input-group">
-            <input @bind="choreInput" class="form-control" placeholder="Type a song name..." />
+            <input @bind="_choreInput" class="form-control" placeholder="Type a song name..." />
             <button class="btn btn-primary" @onclick="FindSong">Search</button>
         </div>
     </div>
@@ -17,47 +17,136 @@
 
 <hr/>
 
-@if (currentSong != null)
+@if (_currentSong != null)
 {
-    <div class="card" style="width: 24rem;">
+    <div class="card" style="width: 24rem; background-color: @_bgColor">
         <div class="card-body">
-            <h5 class="card-title">@currentSong.Title</h5>
-            <h6 class="card-subtitle mb-2 text-muted">@currentSong.Artist</h6>
-            <iframe width="100%" height="200" src="@GetEmbedUrl(currentSong.VideoUrl)" frameborder="0" allowfullscreen></iframe>
+            <div class="d-inline-flex gap-2">
+                <h5 class="card-title" style="color: @_textColor">@_currentSong.Title</h5>
+                @if (_currentSong.Explicit == "explicit")
+                {
+                    <h6 style="color: red; font-weight: bold; font-size: 12px;">EXPLICIT</h6>
+                }
+                @if (_currentSong.Explicit == "cleaned")
+                {
+                    <h6 style="color: #26b050; font-weight: bold; font-size: 12px;">CLEANED</h6>
+                }
+            </div>
+            
+            <h6 class="card-subtitle mb-2" style="color: @_textColor">@_currentSong.Artist</h6>
+            
+            <audio controls controlsList="nodownload" src="@_currentSong.VideoUrl" type="audio/mpeg" style="width: 100%;">
+                Your browser does not support the audio element.
+            </audio>
+            <h6 style="color: @_textColor">@_currentSong.Genre</h6>
+            <h6 style="color: @_textColor">@_currentSong.ReleaseDate.ToString("yyyy")</h6>
+            <button class="btn btn-secondary" @onclick="NewSongFromList">Remix</button>
         </div>
     </div>
 }
-else if (hasSearched) 
+else if (_hasSearched) 
 {
     <div class="alert alert-warning">
-        Could not find a song named "<strong>@choreInput</strong>". Try a famous song title!
+        Could not find a song named "<strong>@_choreInput</strong>". Try a famous song title!
     </div>
 }
 
+<h1 style="margin: 20px; text-decoration: underline;"><bold>Chore Song History</bold></h1>
+<div class="row row-cols-1 row-cols-md-4 g-4 align-items-center text-center" style="width: 40rem;">
+    
+    @foreach (var song in _history)
+    {
+        <p>Song: @song.SongTitle</p>
+        <div>
+            <p>@song.Date.ToString("F")</p>
+        </div>
+        <div>
+            <label for="rating">Rating: </label>
+            <input @bind="@song.Rating" type="number" id="rating" name="rating" min="1" max="5"/>
+        </div>
+        <button class="btn btn-primary" @onclick="(() => AddRating(song.Id, song.Rating))">Submit</button>
+    }
+</div>
+
 @code {
-    private string choreInput = "";
-    private Song? currentSong;
-    private bool hasSearched = false;
-    private List<ChoreHistory> history = new();
+    private string _choreInput = "";
+    private List<Song?> _listOfSongs = [];
+    private Song? _currentSong;
+    private bool _hasSearched = false;
+    private List<ChoreHistory> _history = new();
+    private string _bgColor = "#FFFFFF";
+    private string _textColor = "#000000";
 
     protected override async Task OnInitializedAsync()
     {
-        history = await ChoreService.GetHistoryAsync();
+        _history = await ChoreService.GetHistoryAsync();
     }
 
     private async Task FindSong()
     {
-        if (!string.IsNullOrWhiteSpace(choreInput))
+        if (!string.IsNullOrWhiteSpace(_choreInput))
         {
-            hasSearched = false;
-            currentSong = await ChoreService.ProcessChoreAsync(choreInput);
-            hasSearched = true;
+            _hasSearched = false;
+            _listOfSongs = await ChoreService.ProcessChoreAsync(_choreInput);
+            if (_listOfSongs.Any())
+            {
+                _currentSong = await ChoreService.SelectRandomSongFromListOfSongsAsync(_listOfSongs, _choreInput);
+                _hasSearched = true;
+            }
         }
+
+        await SetGenreColor();
+        StateHasChanged();
     }
+
+    private async Task NewSongFromList()
+    {
+        _currentSong = await ChoreService.SelectRandomSongFromListOfSongsAsync(_listOfSongs, _choreInput);
+        _history = await ChoreService.GetHistoryAsync();
+        await SetGenreColor();
+        StateHasChanged();
+    }
+
     private string GetEmbedUrl(string url)
     {
         if (string.IsNullOrEmpty(url)) return "";
         return url.Replace("watch?v=", "embed/");
     }
+
+    private async Task AddRating(int id, int rating)
+    {
+        await ChoreService.AddRatingToChoreHistory(id, rating);
+        StateHasChanged();
+    }
+
+    private Task SetGenreColor()
+    {
+        switch (_currentSong?.Genre)
+        {
+            case "Pop":
+                _bgColor = "#FF6EC7";
+                _textColor = "#FFFFFF";
+                break;
+            case "Rock":
+                _bgColor = "#333333";
+                _textColor = "#FFFFFF";
+                break;
+            case "Country":
+                _bgColor = "#FF8C00";
+                _textColor = "#FFFFFF";
+                break;
+            case "Jazz":
+                _bgColor = "#224C98";
+                _textColor = "#FFFFFF";
+                break;
+            default:
+                _bgColor = "#E9ECEF";
+                _textColor = "#000000";
+                break;
+        }
+
+        return Task.CompletedTask;
+    }
     
+
 }
